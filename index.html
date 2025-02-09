@@ -264,7 +264,12 @@
         }
 
         function highlightCell(cell) {
-            cell.classList.add('bg-[#ADCFFF]', 'transition-all', 'duration-100', 'ease-in-out');
+            if (parseInt(cell.dataset.value) === 0) {
+                // 빈칸(제거된 셀)인 경우
+                cell.classList.remove('bg-gray-200');
+            }
+            // 새로운 배경색 추가
+            cell.classList.add('bg-[#ADCFFF]', 'transition-all', 'duration-200', 'ease-in-out');
             selectedCells.push(cell);
         }
 
@@ -302,12 +307,19 @@
                 validCells.forEach(cell => {
                     cell.innerText = '';
                     cell.dataset.value = 0;
-                    cell.classList.add('bg-gray-200','opacity-50', 'transition-all', 'duration-500', 'ease-in-out');
+                    cell.classList.add('bg-gray-200','opacity-50', 'transition-all', 'duration-200', 'ease-in-out');
                     removedCellsCount++;
                 });
                 document.getElementById('removedCount').innerText = removedCellsCount;
             }
-            selectedCells.forEach(cell => cell.classList.remove('bg-[#ADCFFF]'));
+            // 모든 선택된 셀에서 배경색 제거하고 제거된 셀은 회색으로 복원
+            selectedCells.forEach(cell => {
+                cell.classList.remove('bg-[#ADCFFF]');
+                if (parseInt(cell.dataset.value) === 0) {
+                    cell.classList.add('bg-gray-200');
+                }
+            });
+            selectedCells = [];
         }
 
         // 볼륨 컨트롤 관련 코드 추가
