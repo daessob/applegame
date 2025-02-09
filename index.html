@@ -70,6 +70,14 @@
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen flex flex-col">
+    <!-- YouTube iframe (hidden) -->
+    <iframe 
+        id="youtubePlayer" 
+        src="https://www.youtube.com/embed/L422Qs3K6_I?enablejsapi=1" 
+        class="hidden"
+        allow="autoplay">
+    </iframe>
+
     <!-- Sidebar Navigation -->
     <div class="flex h-screen">
 
@@ -80,23 +88,60 @@
                 <p class="text-gray-600">드래그하여 숫자 칸을 선택하고 합이 <strong>10</strong>이 되면 칸이 제거됩니다!</p>
             </header>
 
-            <!-- Stats and Timer Section -->
-            <div class="game_info grid grid-cols-4 gap-6 mb-8 opacity-80" style="width: 100%;">
-                <div class="p-6 bg-white rounded shadow">
-                    <h3 class="text-lg font-semibold">현재 시간</h3>
-                    <p id="timer" class="text-2xl text-blue-500">120초 남음</p>
-                </div>
-                <div class="p-6 bg-white rounded shadow">
-                    <h3 class="text-lg font-semibold">제거된 칸 수</h3>
-                    <p id="removedCount" class="text-2xl text-green-500">0</p>
-                </div>
-                <div class="p-6 bg-white rounded shadow col-span-2 flex items-center justify-center">
-                    <button id="resetButton" class="px-8 py-3 bg-blue-500 text-white rounded-lg">게임 리셋</button>
-                </div>
+            <!-- Game Rules Section -->
+            <div id="gameRules" class="bg-white p-6 rounded-lg shadow-md mb-8">
+                <h2 class="text-xl font-bold mb-4">🎮 게임 방법</h2>
+                <ul class="list-disc pl-6 space-y-2">
+                    <li>마우스로 드래그하여 여러 칸을 선택할 수 있습니다.</li>
+                    <li>선택한 칸들의 숫자 합이 10이 되면 해당 칸들이 제거됩니다.</li>
+                    <li>제한 시간 120초 동안 최대한 많은 칸을 제거하세요!</li>
+                </ul>
+                <h2 class="text-xl font-bold mt-6 mb-4">💡 게임 팁</h2>
+                <ul class="list-disc pl-6 space-y-2">
+                    <li>가로, 세로, 대각선 어떤 방향으로도 선택이 가능합니다.</li>
+                    <li>한 번에 여러 칸을 선택할 수 있으니 효율적으로 제거하세요.</li>
+                    <li>빠르게 패턴을 찾아 시간을 절약하세요!</li>
+                </ul>
             </div>
 
-            <!-- Game Grid -->
-            <div id="grid" class="grid grid-container gap-0 mb-8"></div>
+            <!-- Start Game Button -->
+            <div id="startGameSection" class="text-center mb-8">
+                <button id="startGameButton" class="px-8 py-4 bg-green-500 text-white rounded-lg text-xl font-bold hover:bg-green-600 transition-colors">
+                    게임 시작하기
+                </button>
+            </div>
+
+            <!-- Game Content (Initially Hidden) -->
+            <div id="gameContent" class="hidden">
+                <!-- Stats and Timer Section -->
+                <div class="game_info grid grid-cols-4 gap-6 mb-8 opacity-80" style="width: 100%;">
+                    <div class="p-6 bg-white rounded shadow">
+                        <h3 class="text-lg font-semibold">현재 시간</h3>
+                        <p id="timer" class="text-2xl text-blue-500">120초 남음</p>
+                    </div>
+                    <div class="p-6 bg-white rounded shadow">
+                        <h3 class="text-lg font-semibold">제거된 칸 수</h3>
+                        <p id="removedCount" class="text-2xl text-green-500">0</p>
+                    </div>
+                    <div class="p-6 bg-white rounded shadow col-span-2 flex items-center justify-center gap-4">
+                        <button id="resetButton" class="px-8 py-3 bg-blue-500 text-white rounded-lg">게임 리셋</button>
+                        <div class="flex items-center gap-2">
+                            <label for="volumeControl" class="text-sm font-medium">🔊</label>
+                            <input 
+                                type="range" 
+                                id="volumeControl" 
+                                min="0" 
+                                max="100" 
+                                value="20"
+                                class="w-32 h-2 bg-blue-200 rounded-lg appearance-none accent-blue-500 cursor-pointer"
+                            >
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Game Grid -->
+                <div id="grid" class="grid grid-container gap-0 mb-8"></div>
+            </div>
 
             <!-- Popup Notification -->
             <div id="popup" class="hidden fixed inset-0 flex items-center justify-center">
@@ -125,21 +170,72 @@
         let timerInterval;
         let isDragging = false;
         let startCell = null;
+        const startGameButton = document.getElementById('startGameButton');
+        const startGameSection = document.getElementById('startGameSection');
+        const gameRules = document.getElementById('gameRules');
+        const gameContent = document.getElementById('gameContent');
+        let player; // YouTube player 변수 추가
+
+        // YouTube API 로드
+        const tag = document.createElement('script');
+        tag.src = "https://www.youtube.com/iframe_api";
+        const firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+        // YouTube API 준비되면 실행
+        function onYouTubeIframeAPIReady() {
+            player = new YT.Player('youtubePlayer', {
+                events: {
+                    'onReady': onPlayerReady
+                }
+            });
+        }
+
+        function onPlayerReady(event) {
+            // player ready
+        }
 
         function generateGrid() {
             gridContainer.innerHTML = '';
-            for (let i = 0; i < 180; i++) {
+            let numbers = [];
+            let totalSum = 0;
+            
+            // 179개의 셀에 대해 1-9 사이의 랜덤 숫자 생성
+            for (let i = 0; i < 179; i++) {
+                const randomNum = Math.floor(Math.random() * 9) + 1;
+                numbers.push(randomNum);
+                totalSum += randomNum;
+            }
+            
+            // 마지막 셀의 숫자를 조정하여 전체 합이 10의 배수가 되도록 함
+            const remainder = totalSum % 10;
+            let lastNumber;
+            if (remainder === 0) {
+                lastNumber = Math.floor(Math.random() * 9) + 1;
+            } else {
+                lastNumber = (10 - remainder);
+                if (lastNumber > 9) {
+                    lastNumber = lastNumber - 10;
+                }
+                if (lastNumber === 0) {
+                    lastNumber = Math.floor(Math.random() * 9) + 1;
+                }
+            }
+            numbers.push(lastNumber);
+            
+            // 그리드에 숫자 배치
+            numbers.forEach((num, i) => {
                 const cell = document.createElement('div');
                 cell.className = 'bg-[#fff] flex items-center justify-center text-[#111] text-xl font-extrabold border border-black/20 rounded-sm shadow-sm opacity-90';
-                const randomNum = Math.floor(Math.random() * 9) + 1;
-                cell.innerText = randomNum;
-                cell.dataset.value = randomNum;
+                cell.innerText = num;
+                cell.dataset.value = num;
                 cell.dataset.index = i;
                 cell.addEventListener('mousedown', () => startSelection(cell));
                 cell.addEventListener('mouseenter', () => dragSelect(cell));
                 cell.addEventListener('mouseup', endSelection);
                 gridContainer.appendChild(cell);
-            }
+            });
+            
             document.addEventListener('mouseup', endSelection);
         }
 
@@ -198,9 +294,12 @@
         }
 
         function checkSum() {
-            const sum = selectedCells.reduce((acc, cell) => acc + parseInt(cell.dataset.value), 0);
+            // 선택된 셀들 중에서 값이 0이 아닌(제거되지 않은) 셀들만 필터링
+            const validCells = selectedCells.filter(cell => parseInt(cell.dataset.value) !== 0);
+            const sum = validCells.reduce((acc, cell) => acc + parseInt(cell.dataset.value), 0);
+            
             if (sum === 10) {
-                selectedCells.forEach(cell => {
+                validCells.forEach(cell => {
                     cell.innerText = '';
                     cell.dataset.value = 0;
                     cell.classList.add('bg-gray-200','opacity-50', 'transition-all', 'duration-500', 'ease-in-out');
@@ -210,6 +309,15 @@
             }
             selectedCells.forEach(cell => cell.classList.remove('bg-[#ADCFFF]'));
         }
+
+        // 볼륨 컨트롤 관련 코드 추가
+        const volumeControl = document.getElementById('volumeControl');
+
+        volumeControl.addEventListener('input', function() {
+            if (player && player.setVolume) {
+                player.setVolume(this.value);
+            }
+        });
 
         function resetGame() {
             clearInterval(timerInterval);
@@ -221,15 +329,49 @@
             popup.classList.add('hidden');
             generateGrid();
             startTimer();
+            
+            // YouTube 영상 볼륨 초기화 및 재생
+            if (player && player.playVideo) {
+                player.setVolume(volumeControl.value); // 볼륨 슬라이더의 현재 값을 사용
+                player.playVideo();
+            }
+        }
+
+        function startGame() {
+            startGameSection.classList.add('hidden');
+            gameRules.classList.add('hidden');
+            gameContent.classList.remove('hidden');
+            resetGame();
+            // YouTube 영상 재생 및 볼륨 설정
+            if (player && player.playVideo) {
+                player.setVolume(volumeControl.value); // 볼륨 슬라이더의 현재 값을 사용
+                player.playVideo();
+            }
+        }
+
+        function fadeOutAndStop() {
+            let currentVolume = player.getVolume();
+            const fadeInterval = setInterval(() => {
+                currentVolume = Math.max(0, currentVolume - 2); // 볼륨을 점차 줄임
+                player.setVolume(currentVolume);
+                
+                if (currentVolume <= 0) {
+                    clearInterval(fadeInterval);
+                    player.stopVideo();
+                }
+            }, 100); // 0.1초마다 볼륨 감소
         }
 
         function endGame() {
             popupMessage.innerText = `게임 종료! 제거된 칸 수: ${removedCellsCount}`;
             popup.classList.remove('hidden');
+            // YouTube 영상 페이드아웃 후 정지
+            if (player && player.getVolume) {
+                fadeOutAndStop();
+            }
         }
 
-        generateGrid();
-        startTimer();
+        startGameButton.addEventListener('click', startGame);
         resetButton.addEventListener('click', resetGame);
         popupReset.addEventListener('click', resetGame);
     </script>
