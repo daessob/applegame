@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>사과게임</title>
+    <link type="image/png" sizes="32x32" rel="icon" href="https://img.icons8.com/?size=100&id=5J0YM2MKuxZO&format=png&color=000000">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
+
+        body {
+            -webkit-user-select: none; /* Disable text selection in WebKit browsers */
+            -ms-user-select: none; /* Disable text selection in IE */
+            user-select: none; /* Disable text selection in modern browsers */
+            font-family: 'pretendard Variable';
+        }
+        main {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+        header {
+            width: max-content;
+            margin: 0 auto;
+            margin-bottom: 1.5rem;
+        }
+        .grid-container {
+            grid-template-columns: repeat(18, 54px);
+            grid-template-rows: repeat(10, 54px);
+        }
+        .game-info {
+            width: 100% !important;
+            margin: 0 auto;
+            margin-bottom: 2rem;
+        }
+        .popup {
+            background-color: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(4px);
+        }
+        .bg_image {
+            width: 30vw;
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            z-index: -1;
+            opacity: 1;
+        }
+        .bg_image img {
+            display: block;
+            width: 100%; height: auto;
+        }
+        /* #grid>div:nth-child(1) {
+            border-top-left-radius: 6px;
+        }
+        #grid>div:nth-child(18) {
+            border-top-right-radius: 6px;
+        }
+        #grid>div:nth-child(163) {
+            border-bottom-left-radius: 6px;
+        }
+        #grid>div:nth-child(180) {
+            border-bottom-right-radius: 6px;
+        } */
+         .popup button {
+            display: block;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col">
+    <!-- Sidebar Navigation -->
+    <div class="flex h-screen">
+
+        <!-- Main Content -->
+        <main class="flex-0.6 p-8 m-auto">
+            <header class="mb-6">
+                <h1 class="text-3xl font-bold">🍎 합이 10이 되게 맞추는 게임</h1>
+                <p class="text-gray-600">드래그하여 숫자 칸을 선택하고 합이 <strong>10</strong>이 되면 칸이 제거됩니다!</p>
+            </header>
+
+            <!-- Stats and Timer Section -->
+            <div class="game_info grid grid-cols-4 gap-6 mb-8 opacity-80" style="width: 100%;">
+                <div class="p-6 bg-white rounded shadow">
+                    <h3 class="text-lg font-semibold">현재 시간</h3>
+                    <p id="timer" class="text-2xl text-blue-500">120초 남음</p>
+                </div>
+                <div class="p-6 bg-white rounded shadow">
+                    <h3 class="text-lg font-semibold">제거된 칸 수</h3>
+                    <p id="removedCount" class="text-2xl text-green-500">0</p>
+                </div>
+                <div class="p-6 bg-white rounded shadow col-span-2 flex items-center justify-center">
+                    <button id="resetButton" class="px-8 py-3 bg-blue-500 text-white rounded-lg">게임 리셋</button>
+                </div>
+            </div>
+
+            <!-- Game Grid -->
+            <div id="grid" class="grid grid-container gap-1 mb-8"></div>
+
+            <!-- Popup Notification -->
+            <div id="popup" class="hidden fixed inset-0 flex items-center justify-center">
+                <div class="bg-white p-8 rounded shadow-lg">
+                    <p id="popupMessage" class="text-lg font-semibold mb-4">게임 종료!</p>
+                    <button id="popupReset" class="px-6 py-2 bg-green-500 text-white font-bold rounded">다시 하기</button>
+                </div>
+            </div>
+
+            <div class="bg_image">
+                <img src="./images/20241202-230231-2-VSeeFace.png" alt="요아케">
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const gridContainer = document.getElementById('grid');
+        const timerDisplay = document.getElementById('timer');
+        const resetButton = document.getElementById('resetButton');
+        const popup = document.getElementById('popup');
+        const popupMessage = document.getElementById('popupMessage');
+        const popupReset = document.getElementById('popupReset');
+        let selectedCells = [];
+        let removedCellsCount = 0;
+        let timeLeft = 120;
+        let timerInterval;
+        let isDragging = false;
+        let startCell = null;
+
+        function generateGrid() {
+            gridContainer.innerHTML = '';
+            for (let i = 0; i < 180; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'bg-[#fff] flex items-center justify-center text-[#111] text-xl font-extrabold border border-black/20 rounded-full shadow-sm opacity-90';
+                const randomNum = Math.floor(Math.random() * 9) + 1;
+                cell.innerText = randomNum;
+                cell.dataset.value = randomNum;
+                cell.dataset.index = i;
+                cell.addEventListener('mousedown', () => startSelection(cell));
+                cell.addEventListener('mouseenter', () => dragSelect(cell));
+                cell.addEventListener('mouseup', endSelection);
+                gridContainer.appendChild(cell);
+            }
+            document.addEventListener('mouseup', endSelection);
+        }
+
+        function startTimer() {
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                timerDisplay.innerText = `${timeLeft}초 남음`;
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    endGame();
+                }
+            }, 1000);
+        }
+
+        function startSelection(cell) {
+            isDragging = true;
+            startCell = cell;
+            selectedCells = [];
+            highlightCell(cell);
+        }
+
+        function dragSelect(cell) {
+            if (isDragging) {
+                selectRectangle(startCell, cell);
+            }
+        }
+
+        function highlightCell(cell) {
+            cell.classList.add('bg-[#ADCFFF]', 'transition-all', 'duration-100', 'ease-in-out');
+            selectedCells.push(cell);
+        }
+
+        function selectRectangle(startCell, endCell) {
+            selectedCells.forEach(cell => cell.classList.remove('bg-[#ADCFFF]'));
+            selectedCells = [];
+            const startIndex = parseInt(startCell.dataset.index);
+            const endIndex = parseInt(endCell.dataset.index);
+            const startRow = Math.floor(startIndex / 18);
+            const startCol = startIndex % 18;
+            const endRow = Math.floor(endIndex / 18);
+            const endCol = endIndex % 18;
+            for (let row = Math.min(startRow, endRow); row <= Math.max(startRow, endRow); row++) {
+                for (let col = Math.min(startCol, endCol); col <= Math.max(startCol, endCol); col++) {
+                    const cellIndex = row * 18 + col;
+                    const cell = gridContainer.children[cellIndex];
+                    if (cell) highlightCell(cell);
+                }
+            }
+        }
+
+        function endSelection() {
+            if (isDragging) {
+                isDragging = false;
+                checkSum();
+            }
+        }
+
+        function checkSum() {
+            const sum = selectedCells.reduce((acc, cell) => acc + parseInt(cell.dataset.value), 0);
+            if (sum === 10) {
+                selectedCells.forEach(cell => {
+                    cell.innerText = '';
+                    cell.dataset.value = 0;
+                    cell.classList.add('bg-gray-200','opacity-50', 'transition-all', 'duration-500', 'ease-in-out');
+                    removedCellsCount++;
+                });
+                document.getElementById('removedCount').innerText = removedCellsCount;
+            }
+            selectedCells.forEach(cell => cell.classList.remove('bg-[#ADCFFF]'));
+        }
+
+        function resetGame() {
+            clearInterval(timerInterval);
+            selectedCells = [];
+            removedCellsCount = 0;
+            timeLeft = 120;
+            timerDisplay.innerText = '120초 남음';
+            document.getElementById('removedCount').innerText = '0';
+            popup.classList.add('hidden');
+            generateGrid();
+            startTimer();
+        }
+
+        function endGame() {
+            popupMessage.innerText = `게임 종료! 제거된 칸 수: ${removedCellsCount}`;
+            popup.classList.remove('hidden');
+        }
+
+        generateGrid();
+        startTimer();
+        resetButton.addEventListener('click', resetGame);
+        popupReset.addEventListener('click', resetGame);
+    </script>
+</body>
+</html>
