@@ -184,6 +184,8 @@
         const gameRules = document.getElementById('gameRules');
         const gameContent = document.getElementById('gameContent');
         let player; // YouTube player 변수 추가
+        let highScore = 0;
+        let gameScores = [];
 
         // YouTube API 로드
         const tag = document.createElement('script');
@@ -273,20 +275,19 @@
         }
 
         function highlightCell(cell) {
-            const isEmpty = parseInt(cell.dataset.value) === 0;
-            cell.classList.remove('bg-gray-200'); // 기존 회색 배경 제거
-            
-            // 빈칸인 경우 더 연한 색상 사용
-            if (isEmpty) {
-                cell.classList.add('bg-[#D6E5FF]', 'transition-all', 'duration-200', 'ease-in-out');
+            const isEmptyCell = parseInt(cell.dataset.value) === 0;
+            if (isEmptyCell) {
+                cell.classList.remove('bg-gray-200');
+                cell.classList.add('bg-[#D6E5FF]'); // 더 밝은 파란색
             } else {
-                cell.classList.add('bg-[#ADCFFF]', 'transition-all', 'duration-200', 'ease-in-out');
+                cell.classList.add('bg-[#ADCFFF]');
             }
+            cell.classList.add('transition-all', 'duration-200', 'ease-in-out');
             selectedCells.push(cell);
         }
 
         function selectRectangle(startCell, endCell) {
-            selectedCells.forEach(cell => cell.classList.remove('bg-[#ADCFFF]', 'bg-[#D6E5FF]'));
+            selectedCells.forEach(cell => cell.classList.remove('bg-[#ADCFFF]'));
             selectedCells = [];
             const startIndex = parseInt(startCell.dataset.index);
             const endIndex = parseInt(endCell.dataset.index);
@@ -307,6 +308,14 @@
             if (isDragging) {
                 isDragging = false;
                 checkSum();
+                // 빈칸들을 다시 회색으로 되돌림
+                selectedCells.forEach(cell => {
+                    if (parseInt(cell.dataset.value) === 0) {
+                        cell.classList.remove('bg-[#D6E5FF]');
+                        cell.classList.add('bg-gray-200');
+                    }
+                    cell.classList.remove('bg-[#ADCFFF]');
+                });
             }
         }
 
@@ -318,8 +327,8 @@
                 validCells.forEach(cell => {
                     cell.innerText = '';
                     cell.dataset.value = 0;
-                    cell.classList.remove('bg-[#ADCFFF]', 'bg-[#D6E5FF]');
-                    cell.classList.add('bg-gray-200', 'transition-all', 'duration-200', 'ease-in-out');
+                    cell.classList.remove('bg-[#ADCFFF]');
+                    cell.classList.add('opacity-50', 'transition-all', 'duration-200', 'ease-in-out');
                     removedCellsCount++;
                 });
                 document.getElementById('removedCount').innerText = removedCellsCount;
@@ -333,12 +342,7 @@
                     });
                 }
             }
-            selectedCells.forEach(cell => {
-                cell.classList.remove('bg-[#ADCFFF]', 'bg-[#D6E5FF]');
-                if (parseInt(cell.dataset.value) === 0) {
-                    cell.classList.add('bg-gray-200');
-                }
-            });
+            selectedCells.forEach(cell => cell.classList.remove('bg-[#ADCFFF]'));
         }
 
         // 볼륨 컨트롤 관련 코드 추가
@@ -394,8 +398,37 @@
         }
 
         function endGame() {
-            popupMessage.innerText = `게임 종료! 제거된 칸 수: ${removedCellsCount}`;
+            // 게임 기록 메시지 생성
+            let message = `<div class="text-center">`;
+            message += `게임 종료! 이번 게임 점수: ${removedCellsCount}<br>`;
+            
+            // 최고 점수 업데이트 (현재 게임 점수도 고려)
+            if (removedCellsCount > highScore) {
+                highScore = removedCellsCount;
+                sessionStorage.setItem('highScore', highScore.toString());
+            }
+            
+            message += `<div class="text-2xl font-bold my-2">최고 점수: ${highScore}</div>`;
+            message += `<div class="mt-4">최근 3게임 기록:</div>`;
+            
+            // 새로운 게임 기록 추가
+            gameScores.push(removedCellsCount);
+            if (gameScores.length > 3) {
+                gameScores.shift(); // 가장 오래된 게임 기록 제거
+            }
+            
+            // 세션 스토리지에 게임 기록 저장
+            sessionStorage.setItem('gameScores', JSON.stringify(gameScores));
+            
+            // 최근 3게임 기록 표시
+            gameScores.slice().reverse().forEach((score, index) => {
+                message += `${index + 1}. ${score}점<br>`;
+            });
+            message += `</div>`;
+            
+            popupMessage.innerHTML = message;
             popup.classList.remove('hidden');
+            
             // YouTube 영상 페이드아웃 후 정지
             if (player && player.getVolume) {
                 fadeOutAndStop();
