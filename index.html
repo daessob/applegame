@@ -306,6 +306,11 @@
                     removedCellsCount++;
                 });
                 document.getElementById('removedCount').innerText = removedCellsCount;
+                const audio = new Audio('sounds/correct-2-46134.mp3');
+                audio.volume = 0.1;  // 볼륨을 절반으로 설정 (0.0 ~ 1.0 사이의 값)
+                audio.play().catch(error => {
+                    console.error('오디오 재생 실패:', error);
+                });
             }
             selectedCells.forEach(cell => cell.classList.remove('bg-[#ADCFFF]'));
         }
